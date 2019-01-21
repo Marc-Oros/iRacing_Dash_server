@@ -1,8 +1,7 @@
 #!python3
 import irsdk
 import time
-import serial
-
+import socket
 
 class State:
     ir_connected = False
@@ -24,7 +23,7 @@ def check_iracing():
         print('irsdk connected')
 
 
-def loop():
+def loop(sock):
     global maxrpm
     speed = "{:03d}".format(int(ir['Speed']*3.6))
     rpm = "{:05d}".format(int(ir['RPM']))
@@ -38,10 +37,19 @@ def loop():
         led = int(min((curr_thr+50)/(maxrpm-rpm_thr), 1)*8)
     buf = str(led) + ' ' + str(speed) + ' ' + str(rpm) + ' ' + str(gear)
     final = buf.encode('ascii')
-    cnt=ser.write(final)
+    sock.send(final)
+    
 
+serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+host = "192.168.1.56"
+port = 8086
+serversocket.bind((host, port))
 
-ser = serial.Serial('COM3', 9600)
+serversocket.listen(5)
+print('server started and listening')
+(clientsocket, address) = serversocket.accept()
+print("connected to client")
+
 ir = irsdk.IRSDK()
 state = State()
 
@@ -55,7 +63,7 @@ try:
         check_iracing()
         # if we are, then process data
         if state.ir_connected:
-            loop()
+            loop(clientsocket)
         # sleep for 1 second
         # maximum you can use is 1/60
         # cause iracing update data with 60 fps
